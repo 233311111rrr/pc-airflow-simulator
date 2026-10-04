@@ -48,18 +48,6 @@
 
 ---
 
-## 🚀 使用方式
-
-### 直接開啟
-下載 `airflow.html`,用瀏覽器開啟即可。
-
-### GitHub Pages
-1. 將 `airflow.html` 改名為 `index.html`(或保留原名)放在 repo 根目錄
-2. 到 **Settings → Pages**,Source 選 `main` / `/ (root)`
-3. 打開 `https://<你的帳號>.github.io/<repo 名稱>/`
-
----
-
 ## 🎮 操作說明
 
 | 操作 | 方式 |
@@ -109,10 +97,6 @@
 
 ---
 
-## 🛠️ 開發
-
-單檔 `airflow.html`(HTML + CSS + JavaScript),無建置步驟、無外部依賴。直接用編輯器修改即可。
-
 ## 🤝 貢獻
 
 歡迎 Issue / PR,特別是:
@@ -121,4 +105,3 @@
 
 ## 📄 授權
 
-請依需求補上授權條款(例如 MIT)。

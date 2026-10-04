@@ -48,17 +48,6 @@ A single HTML file with **zero dependencies and nothing to install**. It works o
 - **Thermometers**: unlimited, draggable, or placed by position %. Each one reads the air temperature around its point
 - Responsive layout for any screen size, with dark and light themes and touch support
 
----
-
-## 🚀 Getting started
-
-### Open it directly
-Download `airflow.html` and open it in any browser.
-
-### GitHub Pages
-1. Rename `airflow.html` to `index.html` (or keep the name) and put it in the repo root
-2. Go to **Settings → Pages**, set Source to `main` / `/ (root)`
-3. Open `https://<your-username>.github.io/<repo-name>/`
 
 ---
 
@@ -109,11 +98,7 @@ The data lives in three objects inside `airflow.html`: `GD` (GPUs), `CD` (CPUs) 
 - Heat output and thermal resistance are simplified, so temperatures are only useful for comparing layouts
 - There is no loop or pump model. Liquid cooling is simplified as "heat moves to the radiator"
 
----
 
-## 🛠️ Development
-
-A single `airflow.html` file (HTML + CSS + JavaScript) with no build step and no external dependencies. Edit it with any text editor.
 
 ## 🤝 Contributing
 
