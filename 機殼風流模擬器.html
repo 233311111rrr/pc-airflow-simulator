@@ -1,0 +1,217 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>機殼風流模擬器</title>
+<style>
+:root{--bg:#f3f5fa;--fg:#0f172a;--mut:#64748b;--card:#fff;--bd:#e2e8f0;--ac:#4f46e5;--acf:#fff;--sh:0 1px 2px rgba(15,23,42,.06),0 4px 14px rgba(15,23,42,.06);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1020;--fg:#e6eaf6;--mut:#8f99b3;--card:#141b30;--bd:#25304f;--ac:#818cf8;--acf:#0b1020;--sh:0 1px 2px rgba(0,0,0,.4)}}
+:root[data-theme="dark"]{--bg:#0b1020;--fg:#e6eaf6;--mut:#8f99b3;--card:#141b30;--bd:#25304f;--ac:#818cf8;--acf:#0b1020;--sh:0 1px 2px rgba(0,0,0,.4)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",sans-serif}
+#top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);padding:8px 10px 6px;border-bottom:1px solid var(--bd);box-shadow:var(--sh)}
+canvas{display:block;margin:0 auto;border-radius:14px;background:#0b0f16;touch-action:none}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+button,select,input{font:inherit;color:var(--fg)}
+button{flex:none;border:1px solid var(--bd);background:var(--card);border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+button.p,.tabs button.on{background:var(--ac);color:var(--acf);border-color:var(--ac)}
+select,input[type=number],input[type=text]{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:7px 9px;min-width:0}
+#stats{font-size:12px;color:var(--mut);padding:2px}#stats b{color:var(--fg)}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:12px 10px 4px;max-width:900px;margin:0 auto;scrollbar-width:none}
+#settings{max-width:900px;margin:0 auto;padding:4px 10px 60px}.pn[hidden]{display:none}
+.row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px 12px;margin:8px 0;box-shadow:var(--sh)}
+label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut)}
+label:has(>input[type=checkbox]){flex-direction:row;align-items:center;gap:6px;font-size:13px;color:var(--fg)}
+input[type=number]{width:78px}input[type=range]{accent-color:var(--ac);width:110px}input[type=checkbox]{width:18px;height:18px;accent-color:var(--ac)}
+.row button[data-del]{margin-left:auto;border-radius:10px;color:#e11d48}
+.add{width:100%;border-style:dashed;border-radius:14px;padding:10px;color:var(--ac)}
+h4{margin:16px 2px 0;font-size:13px;color:var(--mut)}.hint{font-size:12px;color:var(--mut);margin:6px 2px}.rd{font-weight:700;font-variant-numeric:tabular-nums;margin-left:4px;min-width:56px}
+@media (pointer:coarse){select,input[type=number],input[type=text],button{font-size:16px;min-height:38px}input[type=checkbox]{min-height:0}}
+@media (max-width:420px){input[type=number]{width:68px}}
+</style></head><body>
+<div id="top"><div id="stage"><canvas id="cv"></canvas></div>
+<div class="chips"><button id="pp" class="p">⏸ 暫停</button><button id="rs">↺ 重置</button><button data-p="pos">正壓</button><button data-p="neg">負壓</button><button data-p="bal">平衡</button><button data-p="aio">水冷範例</button><select data-g="view" data-t="s"><option value="T">溫度</option><option value="V">風速</option></select></div>
+<div id="stats"></div></div>
+<nav class="tabs"><button data-tab="env" class="on">機殼</button><button data-tab="parts">CPU/GPU</button><button data-tab="fan">風扇</button><button data-tab="rad">水排/開孔</button><button data-tab="th">溫度計</button></nav>
+<main id="settings">
+<section class="pn" id="p-env"><div class="row"><label>深度(前後) cm<input type="number" data-g="W" value="45"></label><label>高度 cm<input type="number" data-g="H" value="45"></label><label>厚度(側板間) cm<input type="number" data-g="D" value="22"></label></div>
+<div class="row"><label>側板<select data-g="panel" data-t="s"><option value="glass">玻璃側透</option><option value="solid">實心鋼板</option><option value="mesh">網孔側板</option></select></label><label><input type="checkbox" data-g="psu">底部電源罩</label></div>
+<div class="row"><label>室溫 °C<input type="number" data-g="Ta" value="25"></label><label>進風濾網堵塞 %<input type="number" data-g="clog" value="0"></label></div></section>
+<section class="pn" id="p-parts" hidden><div class="row"><label>CPU 最高 W<input type="number" data-g="cpu" value="125"></label><label>GPU 最高 W<input type="number" data-g="gpu" value="250"></label></div><div id="cps"></div>
+<p class="hint">可直接在畫面上用手指/滑鼠拖曳 CPU、GPU 移動位置,也可改下方數值。型號資料庫:✓=已上網核對(顯卡:瓦數+尺寸;CPU:最大功耗);✓W=只核對瓦數;無標示=典型值。風扇口徑/風量為估算,非公版卡尺寸請手動修正。</p></section>
+<section class="pn" id="p-fan" hidden><div id="fans"></div><button id="af" class="add">＋新增風扇</button></section>
+<section class="pn" id="p-rad" hidden><h4>水冷排</h4><div id="rads"></div><button id="ar" class="add">＋新增水排</button><h4>被動開孔</h4><div id="vents"></div><button id="av" class="add">＋新增開孔</button>
+<p class="hint">水排貼著機殼內側,請在同一側加風扇並對準位置。</p></section>
+<section class="pn" id="p-th" hidden><div id="ths"></div><button id="at" class="add">＋新增溫度計</button><p class="hint">溫度計數量不限,可在畫面上拖曳,或輸入位置百分比。讀數為該點周圍空氣溫度。</p></section>
+</main>
+<script>
+const $=s=>document.querySelector(s),clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const S={W:45,H:45,D:22,panel:'glass',psu:false,Ta:25,clog:0,cpu:125,gpu:250,view:'T'};
+let fans=[],vents=[],run=true;
+const F=(side,pos,d,cfm,spd,dir)=>{const m=d==140?1200:1500;return{on:true,side,pos,d,cfm,spd,dir,rpmMax:m,rpm:m*spd/100}};
+function preset(n){const fr=[22,50,78].map(p=>F('L',p,120,60,100,'in'));rads=[];cps.forEach(c=>c.mode='air');
+ if(n==='aio'){fans=[...fr,F('R',25,120,60,100,'out'),F('T',26.7,120,60,100,'out'),F('T',53.3,120,60,100,'out')];vents=[];rads=[{side:'T',pos:40,len:240,th:27,src:'cpu'}];cps[0].mode='water';cps[0].w=8;cps[0].h=10;cps[0].mm=0}
+ if(n==='pos'||n==='neg'||n==='bal'){cps[0].w=16;cps[0].h=26;cps[0].mm=0}
+ if(n==='pos'){fans=[...fr,F('R',25,120,60,60,'out')];vents=[{side:'T',pos:35,d:120},{side:'T',pos:70,d:120}]}
+ if(n==='neg'){fans=[F('L',50,120,60,100,'in'),F('R',25,120,60,100,'out'),F('T',35,120,60,100,'out'),F('T',70,120,60,100,'out')];vents=[]}
+ if(n==='bal'){fans=[...fr,F('R',25,120,60,100,'out'),F('T',35,120,60,100,'out'),F('T',70,120,60,100,'out')];vents=[]}
+ renderLists();mask()}
+const sel=(l,i,k,v,o)=>`<select data-l="${l}" data-i="${i}" data-k="${k}" data-t="${(k=='d'||k=='len')?'n':'s'}">${Object.entries(o).map(([a,b])=>`<option value="${a}"${a==v?' selected':''}>${b}</option>`).join('')}</select>`;
+const num=(l,i,k,v,t)=>`<label>${t}<input type="number" data-l="${l}" data-i="${i}" data-k="${k}" value="${v}"></label>`;
+const SD={L:'前',R:'後',T:'上',B:'下'};
+function renderLists(){
+ $('#ths').innerHTML=ths.map((q,i)=>`<div class="row"><label>名稱<input type="text" data-l="ths" data-i="${i}" data-k="n" data-t="s" value="${q.n}" style="width:100px"></label>${num('ths',i,'x',Math.round(q.x),'左%')}${num('ths',i,'y',Math.round(q.y),'上%')}<span class="rd" data-th="${i}">--</span><button data-del="ths" data-i="${i}">✕</button></div>`).join('');
+$('#cps').innerHTML=cps.map((c,i)=>{const gp=c.k=='gpu';return `<div class="row"><b>${c.n}</b>${dbSel(gp?'gpu':'cpu',gp?GP:CU,c.db,gp?'選擇顯卡型號…':'選擇CPU型號…')}${gp?'':dbSel('cool',CO,c.co,'選擇散熱器…')}</div><div class="row">${sel('cps',i,'mode',c.mode,{air:'氣冷',water:'水冷'})}${num('cps',i,'x',c.x,'左%')}${num('cps',i,'y',c.y,'上%')}${num('cps',i,'w',Math.round(cwp(c)),'寬%')}${num('cps',i,'h',Math.round(chp(c)),'高%')}${num('cps',i,'load',c.load,'負載%')}</div>`+(gp?`<div class="row">顯卡風扇 ${num('cps',i,'nf',c.nf,'數量')}${num('cps',i,'fd',c.fd,'口徑mm')}${num('cps',i,'fcfm',c.fcfm,'單顆CFM')}${num('cps',i,'rpmMax',c.rpmMax,'上限RPM')}<label>轉速<input type="range" min="0" max="100" data-l="cps" data-i="${i}" data-k="spd" value="${Math.round(c.rpm/c.rpmMax*100)}"></label>${num('cps',i,'rpm',Math.round(c.rpm),'RPM')}</div>`:'')}).join('');
+ $('#rads').innerHTML=rads.map((f,i)=>`<div class="row">${sel('rads',i,'side',f.side,SD)}${num('rads',i,'pos',f.pos,'位置%')}${sel('rads',i,'len',f.len,{120:'120排',140:'140排',240:'240排',280:'280排',360:'360排',420:'420排'})}${num('rads',i,'th',f.th,'厚mm')}${sel('rads',i,'src',f.src,{cpu:'冷卻CPU',gpu:'冷卻GPU',both:'CPU+GPU'})}<button data-del="rads" data-i="${i}">✕</button></div>`).join('');
+$('#fans').innerHTML=fans.map((f,i)=>`<div class="row"><label><input type="checkbox" data-l="fans" data-i="${i}" data-k="on"${f.on?' checked':''}>開</label>${sel('fans',i,'side',f.side,SD)}${num('fans',i,'pos',f.pos,'位置%')}${sel('fans',i,'d',f.d,{120:'12cm',140:'14cm'})}${num('fans',i,'cfm',f.cfm,'最大CFM')}${num('fans',i,'rpmMax',f.rpmMax,'上限RPM')}<label>轉速<input type="range" min="0" max="100" data-l="fans" data-i="${i}" data-k="spd" value="${Math.round(f.rpm/f.rpmMax*100)}"></label>${num('fans',i,'rpm',Math.round(f.rpm),'RPM')}${sel('fans',i,'dir',f.dir,{in:'進風',out:'排風'})}<button data-del="fans" data-i="${i}">✕</button></div>`).join('');
+ $('#vents').innerHTML=vents.map((f,i)=>`<div class="row">${sel('vents',i,'side',f.side,SD)}${num('vents',i,'pos',f.pos,'位置%')}${num('vents',i,'d',f.d,'長度mm')}<button data-del="vents" data-i="${i}">✕</button></div>`).join('')}
+document.addEventListener('input',e=>{const t=e.target;let v=t.type=='checkbox'?t.checked:(t.dataset.t=='s'?t.value:+t.value);if(v!==v)v=0;
+ if(t.dataset.l){const o=({fans,vents,rads,cps,ths})[t.dataset.l][t.dataset.i],k=t.dataset.k;
+ if(t.dataset.l=='cps'&&(k=='w'||k=='h')&&o.mm){o.w=cwp(o);o.h=chp(o);o.mm=0}
+ o[k]=v;if(k=='spd')o.rpm=(o.rpmMax||1)*v/100;if(k=='rpm'||k=='rpmMax')o.rpm=clamp(o.rpm,0,o.rpmMax||1);
+ const row=t.closest('.row');if(row&&'rpm' in o){const a=row.querySelector('[data-k=rpm]'),b=row.querySelector('[data-k=spd]');if(a&&k!='rpm')a.value=Math.round(o.rpm);if(b&&k!='spd')b.value=Math.round(o.rpm/(o.rpmMax||1)*100)}
+ mask()}
+ else if(t.dataset.g){S[t.dataset.g]=v;if('WHD'.includes(t.dataset.g)){S.W=clamp(S.W||45,20,80);S.H=clamp(S.H||45,20,80);S.D=clamp(S.D||22,10,40);alloc()}mask()}});
+document.addEventListener('click',e=>{const t=e.target;
+ if(t.dataset.del){({fans,vents,rads,ths})[t.dataset.del].splice(t.dataset.i,1);renderLists();mask()}
+ if(t.dataset.p)preset(t.dataset.p)});
+$('#af').onclick=()=>{fans.push(F('L',50,120,60,100,'in'));renderLists();mask()};
+$('#ar').onclick=()=>{rads.push({side:'T',pos:40,len:240,th:27,src:'cpu'});renderLists();mask()};
+$('#at').onclick=()=>{ths.push({n:'T'+(ths.length+1),x:50,y:50});renderLists()};
+$('#av').onclick=()=>{vents.push({side:'T',pos:50,d:120});renderLists();mask()};
+$('#pp').onclick=e=>{run=!run;e.target.textContent=run?'⏸ 暫停':'▶ 繼續'};
+$('#rs').onclick=()=>{u.fill(0);v.fill(0);p.fill(0);T.fill(S.Ta)};
+const nx=110;let ny,N,dx,dt=.001,u,v,u0,v0,T,T0,p,dv,tp,fu,fv,inn,fin,fl,ring,comps=[];
+function alloc(){ny=clamp(Math.round(nx*S.H/S.W),50,150);N=nx*ny;[u,v,u0,v0,T,T0,p,dv,fu,fv]=Array.from({length:10},()=>new Float32Array(N));tp=new Uint8Array(N);por=new Uint8Array(N);fin=new Uint8Array(N);inn=new Int32Array(N);T.fill(S.Ta)}
+function cellOf(side,k){return side=='L'?[0,k,1,k]:side=='R'?[nx-1,k,nx-2,k]:side=='T'?[k,0,k,1]:[k,ny-1,k,ny-2]}
+function rng(f){const L=(f.side=='L'||f.side=='R')?ny:nx;const c=f.pos/100*L,h=f.d/1000/dx/2;return[Math.max(1,Math.round(c-h)),Math.min(L-2,Math.round(c+h))]}
+let cps=[{n:'CPU',k:'cpu',x:60,y:20,w:16,h:26,mode:'air',r:.22,load:100,db:-1,co:-1},{n:'GPU',k:'gpu',x:30,y:56,w:58,h:6,mode:'air',r:.09,load:100,db:-1,nf:3,fd:90,fcfm:50,rpmMax:3000,rpm:3000}],rads=[],por,ths=[{n:'進風',x:6,y:50},{n:'後排',x:92,y:20},{n:'GPU上',x:55,y:49}],VW={M:30,s:3};
+function cwp(o){return o.mm?o.mw/(S.W*10)*100:o.w}function chp(o){return o.mm?o.mh/(S.H*10)*100:o.h}
+const FS={80:[30,3800],90:[40,3300],100:[50,3000],110:[60,2800]};
+const GD={'NVIDIA RTX 50':'RTX 5090 FE,575,304,2,2,110,1;RTX 5080 FE,360,304,2,2,110,1;RTX 5070 Ti,300,300,2.5,3,90,2;RTX 5070 FE,250,242,2,2,100,1;RTX 5060 Ti,180,240,2,2,90,2;RTX 5060,145,200,2,2,80,2;RTX 5050,130,200,2,1,90,2',
+'NVIDIA RTX 40':'RTX 4090 FE,450,304,3,2,110,1;RTX 4080 Super FE,320,304,3,2,110,1;RTX 4080 FE,320,304,3,2,110,1;RTX 4070 Ti Super,285,300,2.5,3,90;RTX 4070 Ti,285,300,2.5,3,90;RTX 4070 Super,220,244,2,2,100;RTX 4070,200,244,2,2,100;RTX 4060 Ti,160,240,2,2,90;RTX 4060,115,200,2,2,80',
+'NVIDIA RTX 30':'RTX 3090 Ti,450,313,3,2,110;RTX 3090,350,313,3,2,110;RTX 3080 Ti,350,285,2,2,110;RTX 3080,320,285,2,2,110;RTX 3070 Ti,290,270,2,2,100;RTX 3070,220,242,2,2,100;RTX 3060 Ti,200,242,2,2,90;RTX 3060,170,242,2,2,90;RTX 3050,130,229,2,2,80',
+'NVIDIA RTX 20 / GTX':'RTX 2080 Ti,250,267,2,2,90;RTX 2080 Super,250,267,2,2,90;RTX 2080,215,267,2,2,90;RTX 2070 Super,215,267,2,2,90;RTX 2060 Super,175,229,2,2,90;RTX 2060,160,229,2,2,90;GTX 1660 Ti,120,229,2,2,90;GTX 1660 Super,125,229,2,2,90;GTX 1650,75,170,2,1,80;GTX 1080 Ti,250,267,2,1,90;GTX 1080,180,267,2,1,90;GTX 1070,150,267,2,1,90;GTX 1060 6G,120,250,2,1,90',
+'AMD RX 9000':'RX 9070 XT Sapphire Pulse,304,320,3.2,3,90,1;RX 9070 XT Sapphire Nitro+,304,331,3.2,3,90,1;RX 9070 XT XFX Mercury,304,360,3.5,3,90,1;RX 9070 XT ASRock Challenger,304,290,2.8,3,90,1;RX 9070 XT PowerColor Reaper,304,289,2,3,90,1;RX 9070,220,300,2.5,3,90;RX 9060 XT,160,250,2,2,90',
+'AMD RX 7000':'RX 7900 XTX,355,287,2.5,2,90;RX 7900 XT,315,276,2.5,2,90;RX 7900 GRE,260,276,2.5,2,90;RX 7800 XT,263,267,2,2,90;RX 7700 XT,245,267,2,2,90;RX 7600 XT,190,250,2,2,90;RX 7600,165,204,2,2,80',
+'AMD RX 6000 / 5000':'RX 6950 XT,335,267,2.5,3,90;RX 6900 XT,300,267,2.5,3,90;RX 6800 XT,300,267,2.5,3,90;RX 6800,250,267,2.5,3,90;RX 6750 XT,250,267,2,3,90;RX 6700 XT,230,267,2,2,90;RX 6650 XT,180,240,2,2,90;RX 6600 XT,160,240,2,2,90;RX 6600,132,190,2,2,80;RX 6500 XT,107,190,2,1,80;RX 5700 XT,225,267,2,1,90',
+'Intel Arc':'Arc B580,190,272,2,2,90;Arc B570,150,272,2,2,90;Arc A770,225,276,2,2,90;Arc A750,225,276,2,2,90;Arc A580,185,276,2,2,90;Arc A380,75,222,2,1,80'};
+const CD={'Intel Core Ultra 200S':'Ultra 9 285K,250,1;Ultra 7 265K,250,1;Ultra 5 245K,159,1','Intel 14 代':'i9-14900K,253;i7-14700K,253;i5-14600K,181;i5-14400,148;i3-14100,110','Intel 13 代':'i9-13900K,253;i7-13700K,253;i5-13600K,181;i5-13400,148','Intel 12 代':'i9-12900K,241;i7-12700K,190;i5-12600K,150;i5-12400,117;i3-12100,89',
+'AMD Ryzen 9000':'R9 9950X3D,200;R9 9950X,200,1;R9 9900X,162,1;R7 9800X3D,162;R7 9700X,88;R5 9600X,88,1','AMD Ryzen 7000':'R9 7950X3D,162,1;R9 7950X,230,1;R9 7900X,230;R7 7800X3D,162,1;R7 7700X,142;R5 7600X,142;R5 7600,88','AMD Ryzen 5000':'R9 5950X,142;R9 5900X,142;R7 5800X3D,142;R7 5800X,142;R7 5700X,88;R5 5600X,88;R5 5600,88','AMD Threadripper':'TR 7980X,350;TR 7970X,350;TR 7960X,350'};
+const KD={'氣冷散熱器':'Noctua NH-D15,150,165,a;Noctua NH-U12A,125,158,a;Thermalright Peerless Assassin 120,125,155,a;DeepCool AK620,129,160,a;DeepCool AK400,120,155,a;Cooler Master Hyper 212,120,159,a;be quiet! Dark Rock Pro 5,145,168,a;Scythe Fuma 3,130,154,a','水冷頭(需水排)':'AIO 水冷頭 一般型,70,70,w;AIO 水冷頭 小型,55,55,w'};
+const GP=[],CU=[],CO=[];
+for(const[g,s]of Object.entries(GD))s.split(';').forEach(x=>{const a=x.split(',');GP.push({g,n:a[0],W:+a[1],len:+a[2],sl:+a[3],nf:+a[4],fd:+a[5],l:(a[6]==1?'✓ ':a[6]==2?'✓W ':'')+a[0]+' '+a[1]+'W'})});
+for(const[g,s]of Object.entries(CD))s.split(';').forEach(x=>{const a=x.split(',');CU.push({g,n:a[0],W:+a[1],l:(a[2]?'✓ ':'')+a[0]+' '+a[1]+'W'})});
+for(const[g,s]of Object.entries(KD))s.split(';').forEach(x=>{const a=x.split(',');CO.push({g,n:a[0],w:+a[1],h:+a[2],m:a[3],l:a[0]+' '+a[1]+'×'+a[2]+'mm'})});
+function dbSel(kind,arr,cur,ph){let o=`<select data-db="${kind}"><option value="">${ph}</option>`,g='';arr.forEach((x,i)=>{if(x.g!==g){if(g)o+='</optgroup>';g=x.g;o+=`<optgroup label="${g}">`}o+=`<option value="${i}"${i===cur?' selected':''}>${x.l}</option>`});return o+'</optgroup></select>'}
+document.addEventListener('change',e=>{const t=e.target,k=t.dataset.db;if(!k)return;const i=t.value===''?-1:+t.value;
+ if(k=='cpu'){cps[0].db=i;const x=CU[i];if(x){S.cpu=x.W;$('[data-g=cpu]').value=x.W;cps[0].load=100}}
+ if(k=='gpu'){cps[1].db=i;const x=GP[i];if(x){const c=cps[1],f=FS[x.fd]||[45,3000];S.gpu=x.W;$('[data-g=gpu]').value=x.W;Object.assign(c,{nf:x.nf,fd:x.fd,fcfm:f[0],rpmMax:f[1],rpm:f[1],mm:1,mw:x.len,mh:x.sl*20.3,load:100});c.x=clamp(90-cwp(c),2,70)}}
+ if(k=='cool'){cps[0].co=i;const x=CO[i];if(x){const c=cps[0];Object.assign(c,{mm:1,mw:x.w,mh:x.h,mode:x.m=='w'?'water':'air'});if(c.mode=='water'&&!rads.some(q=>q.src!='gpu'))rads.push({side:'T',pos:40,len:240,th:27,src:'cpu'})}}
+ renderLists();mask()});
+function mask(){dx=S.W/100/nx;fans.forEach(f=>f.spd=clamp(f.rpm/Math.max(1,f.rpmMax)*100,0,100));tp.fill(0);fu.fill(0);fv.fill(0);fin.fill(0);inn.fill(-1);
+ for(let j=0;j<ny;j++)for(let i=0;i<nx;i++)if(i==0||j==0||i==nx-1||j==ny-1)tp[j*nx+i]=1;
+ if(S.psu)for(let j=Math.round(ny*.87);j<ny-1;j++)for(let i=Math.round(nx*.06);i<nx-1;i++)tp[j*nx+i]=1;
+ por.fill(0);
+ comps=cps.map(c=>{const X0=clamp(Math.round(c.x/100*nx),2,nx-4),Y0=clamp(Math.round(c.y/100*ny),2,ny-4);const r={...c,P:S[c.k]*(c.load??100)/100,cells:[],X0,Y0,X1:clamp(X0+Math.max(1,Math.round(cwp(c)/100*nx))-1,X0,nx-3),Y1:clamp(Y0+Math.max(1,Math.round(chp(c)/100*ny))-1,Y0,ny-3)};
+  for(let j=r.Y0;j<=r.Y1;j++)for(let i=r.X0;i<=r.X1;i++)tp[j*nx+i]=1;return r});
+ rads.forEach(rd=>{const[a,b]=rng({side:rd.side,pos:rd.pos,d:rd.len}),th=Math.max(1,Math.round(rd.th/1000/dx));rd.cells=[];rd.P=0;
+  for(let k=a;k<=b;k++)for(let q=1;q<=th;q++){const i=rd.side=='L'?q:rd.side=='R'?nx-1-q:k,j=rd.side=='T'?q:rd.side=='B'?ny-1-q:k;if(i<1||j<1||i>nx-2||j>ny-2)continue;const c=j*nx+i;if(tp[c]==0){por[c]=1;rd.cells.push(c)}}});
+ comps.forEach(c=>{c.rads=rads.filter(rd=>rd.src=='both'||rd.src==c.k);c.water=c.mode=='water'&&c.rads.length>0;if(c.water)c.rads.forEach(rd=>rd.P+=c.P/c.rads.length)});
+ for(const r of comps){const s=new Set();for(let j=r.Y0-1;j<=r.Y1+1;j++)for(let i=r.X0-1;i<=r.X1+1;i++){if(i<1||j<1||i>=nx-1||j>=ny-1)continue;const inR=i>=r.X0&&i<=r.X1&&j>=r.Y0&&j<=r.Y1;const adj=(i>=r.X0&&i<=r.X1)||(j>=r.Y0&&j<=r.Y1);if(!inR&&adj&&tp[j*nx+i]==0)s.add(j*nx+i)}r.cells=[...s]}
+ let mx=1;const put=(f,type)=>{const[a,b]=rng(f);for(let k=a;k<=b;k++){const[i,j,ni,nj]=cellOf(f.side,k),c=j*nx+i;tp[c]=type;inn[c]=nj*nx+ni;
+  if(type==3){const inw=f.dir=='in',m=(f.cfm*f.spd/100*.000471947*(inw?1-S.clog/100*.7:1))/(Math.PI/4*(f.d/1000)**2*.8),sg=inw?1:-1;
+   const ux=ni-i,uy=nj-j;fu[c]=ux*sg*m;fv[c]=uy*sg*m;fin[c]=inw?1:0;mx=Math.max(mx,m)}}};
+ vents.forEach(f=>put(f,2));fans.forEach(f=>f.on&&put(f,3));
+ dt=.5*dx/mx;
+ fl=[];ring=[];for(let c=0;c<N;c++){if(tp[c]==0)fl.push(c);else if(tp[c]>1&&tp[c]<4)ring.push(c)}fl=Int32Array.from(fl);ring=Int32Array.from(ring);for(let c=0;c<N;c++)if(tp[c]==1){u[c]=0;v[c]=0}}
+function project(){
+ for(const c of fl)dv[c]=-.5*(u[c+1]-u[c-1]+v[c+nx]-v[c-nx]);
+ for(let it=0;it<30;it++)for(const c of fl){let s=0,n=0,t;
+  t=tp[c+1];if(t==0){s+=p[c+1];n++}else if(t==2)n++;
+  t=tp[c-1];if(t==0){s+=p[c-1];n++}else if(t==2)n++;
+  t=tp[c+nx];if(t==0){s+=p[c+nx];n++}else if(t==2)n++;
+  t=tp[c-nx];if(t==0){s+=p[c-nx];n++}else if(t==2)n++;
+  p[c]=n?(dv[c]+s)/n:0}
+ const g=(n,c)=>tp[n]==0?p[n]:tp[n]==2?0:p[c];
+ for(const c of fl){u[c]-=.5*(g(c+1,c)-g(c-1,c));v[c]-=.5*(g(c+nx,c)-g(c-nx,c))}}
+function bl(A,a,s,t){return(1-s)*((1-t)*A[a]+t*A[a+nx])+s*((1-t)*A[a+1]+t*A[a+nx+1])}
+function step(){const Ta=S.Ta;
+ for(const c of ring){const n=inn[c];if(tp[c]==3){u[c]=fu[c];v[c]=fv[c];T[c]=fin[c]?Ta:T[n]}
+  else{u[c]=u[n];v[c]=v[n];const a=(n%nx)-(c%nx),b=((n/nx)|0)-((c/nx)|0);T[c]=(u[n]*a+v[n]*b>0)?Ta:T[n]}}
+ for(const c of fl){v[c]-=.0327*(T[c]-Ta)*dt;if(por[c]){u[c]*=.6;v[c]*=.6}}
+ project();u0.set(u);v0.set(v);T0.set(T);const k=dt/dx;
+ for(const c of fl){const i=c%nx,j=(c/nx)|0;const x=clamp(i-u0[c]*k,.5,nx-1.5),y=clamp(j-v0[c]*k,.5,ny-1.5);const i0=x|0,j0=y|0,s=x-i0,t=y-j0,a=j0*nx+i0;
+  u[c]=bl(u0,a,s,t);v[c]=bl(v0,a,s,t);T[c]=bl(T0,a,s,t)}
+ project();
+ for(const r of comps){if(!r.cells.length)continue;const d=(r.water?0:r.P)*dt/(r.cells.length*1206*dx*dx*S.D/100);for(const c of r.cells)T[c]+=d}
+ for(const rd of rads){if(!rd.cells.length||!rd.P)continue;const d=rd.P*dt/(rd.cells.length*1206*dx*dx*S.D/100);for(const c of rd.cells)T[c]+=d}
+ const kl=({glass:.3,solid:.8,mesh:3}[S.panel])*dt;
+ for(const c of fl)T[c]=clamp(T[c]+(Ta-T[c])*kl,Ta-2,Ta+70)}
+function jet(t){t=clamp(t,0,1);const f=x=>clamp(1.5-Math.abs(x),0,1);return[255*f(4*t-3),255*f(4*t-2),255*Math.max(.35,f(4*t-1))]}
+const cv=$('#cv'),ctx=cv.getContext('2d'),off=document.createElement('canvas');
+function arrow(x,y,dx_,dy_,l,col,w){ctx.strokeStyle=ctx.fillStyle=col;ctx.lineWidth=w;const m=Math.hypot(dx_,dy_)||1,ux=dx_/m,uy=dy_/m,x2=x+ux*l,y2=y+uy*l;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke();
+ const h=Math.max(3,l*.3);ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-ux*h+uy*h*.6,y2-uy*h-ux*h*.6);ctx.lineTo(x2-ux*h-uy*h*.6,y2-uy*h+ux*h*.6);ctx.fill()}
+function draw(){const dpr=devicePixelRatio||1,aw=$('#stage').clientWidth||320,wide=matchMedia('(min-width:900px)').matches,ah=innerHeight*(wide?.58:.5),M=clamp(aw*.06,20,34),s=Math.max(1.5,Math.min((aw-2*M)/nx,(ah-2*M-34)/ny)),cw=Math.round(nx*s+2*M),ch=Math.round(ny*s+2*M+34);
+ VW.M=M;VW.s=s;
+ if(cv.width!=Math.round(cw*dpr)||cv.height!=Math.round(ch*dpr)){cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);cv.style.width=cw+'px';cv.style.height=ch+'px'}
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cw,ch);
+ off.width=nx;off.height=ny;const oc=off.getContext('2d'),im=oc.createImageData(nx,ny),lo=S.Ta-3,hi=S.Ta+20,V=S.view=='V';let vm=1;
+ if(V)for(const c of fl)vm=Math.max(vm,Math.hypot(u[c],v[c]));
+ for(let c=0;c<N;c++){let r,g,b;if(tp[c]==1){r=38;g=42;b=52}else if(tp[c]==3){r=80;g=86;b=98}
+  else{[r,g,b]=V?jet(Math.hypot(u[c],v[c])/vm):jet((T[c]-lo)/(hi-lo))}
+  im.data.set([r,g,b,255],c*4)}
+ oc.putImageData(im,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(off,M,M,nx*s,ny*s);
+ ctx.strokeStyle='#cfd6e0';ctx.lineWidth=2;ctx.strokeRect(M,M,nx*s,ny*s);
+ // arrows
+ const st=7;for(let j=st;j<ny-2;j+=st)for(let i=st;i<nx-2;i+=st){const c=j*nx+i;if(tp[c])continue;const sp=Math.hypot(u[c],v[c]);if(sp<.03)continue;
+  arrow(M+i*s,M+j*s,u[c],v[c],clamp(sp*7,4,st*s*.9),'rgba(255,255,255,.8)',1)}
+ rads.forEach(rd=>{const[a,b]=rng({side:rd.side,pos:rd.pos,d:rd.len}),th=Math.max(1,Math.round(rd.th/1000/dx)),ln=(b-a+1)*s,tt=th*s;let x,y,w,h;
+  if(rd.side=='T'){x=M+a*s;y=M+s;w=ln;h=tt}else if(rd.side=='B'){x=M+a*s;y=M+(ny-1-th)*s;w=ln;h=tt}else if(rd.side=='L'){x=M+s;y=M+a*s;w=tt;h=ln}else{x=M+(nx-1-th)*s;y=M+a*s;w=tt;h=ln}
+  ctx.fillStyle='rgba(255,255,255,.2)';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#fff';ctx.setLineDash([2,2]);ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);
+  ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('水排',x+w/2,y+h/2+3)});
+ // components
+ ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';
+ for(const r of comps)ctx.fillText(r.n+(r.water?'💧':'')+' '+r.P+'W',M+(r.X0+r.X1)/2*s,M+(r.Y0+r.Y1)/2*s+4);
+ for(const q of comps)if(q.k=='gpu'&&q.nf>0&&!q.water)for(let z=0;z<q.nf;z++){const cx=M+(q.X0+(z+.5)*(q.X1-q.X0+1)/q.nf)*s;arrow(cx,M+(q.Y1+1)*s+11,0,-1,9,'#7ee787',1.5)}
+ comps.forEach(q=>{ctx.strokeStyle='rgba(255,255,255,.6)';ctx.setLineDash([3,2]);ctx.lineWidth=1;ctx.strokeRect(M+q.X0*s,M+q.Y0*s,(q.X1-q.X0+1)*s,(q.Y1-q.Y0+1)*s);ctx.setLineDash([])});
+ ths.forEach(t=>{const i=t.x/100*nx,j=t.y/100*ny,v=tempAt(Math.floor(i),Math.floor(j)),cx=M+i*s,cy=M+j*s,tx=t.n+' '+(v==null?'--':v.toFixed(1)+'°');
+  ctx.font='bold 11px sans-serif';const w=ctx.measureText(tx).width+10,lx=cx>cw*.65?cx-10-w:cx+10;
+  ctx.fillStyle='rgba(0,0,0,.75)';ctx.beginPath();(ctx.roundRect||ctx.rect).call(ctx,lx,cy-9,w,18,9);ctx.fill();
+  ctx.fillStyle='#fff';ctx.textAlign='left';ctx.fillText(tx,lx+5,cy+4);
+  ctx.beginPath();ctx.arc(cx,cy,6,0,6.3);ctx.fillStyle='#fff';ctx.fill();ctx.beginPath();ctx.arc(cx,cy,3.5,0,6.3);ctx.fillStyle=v==null?'#999':'#ef4444';ctx.fill()});
+ // fans & vents
+ const box=(f,col,isFan)=>{const[a,b]=rng(f),len=(b-a+1)*s,th=M-6,mid=M+(a+b)/2*s;let x,y,w,h,nxv,nyv;
+  if(f.side=='L'){x=M-th-2;y=M+a*s;w=th;h=len;nxv=1;nyv=0}else if(f.side=='R'){x=M+nx*s+2;y=M+a*s;w=th;h=len;nxv=-1;nyv=0}
+  else if(f.side=='T'){x=M+a*s;y=M-th-2;w=len;h=th;nxv=0;nyv=1}else{x=M+a*s;y=M+ny*s+2;w=len;h=th;nxv=0;nyv=-1}
+  if(!isFan){ctx.strokeStyle='#3fb950';ctx.setLineDash([4,3]);ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);return}
+  ctx.globalAlpha=f.on?1:.35;ctx.fillStyle='#1c2230';ctx.strokeStyle='#8b98ad';ctx.lineWidth=1;ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+  const cx=x+w/2,cy=y+h/2,R=Math.min(w,h)/2-1;ctx.beginPath();ctx.arc(cx,cy,R,0,6.3);ctx.stroke();
+  const ang=performance.now()/200*f.spd/100;for(let q=0;q<7;q++){const A=ang+q*6.283/7;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,A,A+.5);ctx.fill()}
+  const sg=f.dir=='in'?1:-1;if(f.on)arrow(cx-nxv*sg*8,cy-nyv*sg*8,nxv*sg,nyv*sg,16,f.dir=='in'?'#58a6ff':'#ff7b72',2.5);ctx.globalAlpha=1};
+ vents.forEach(f=>box(f,0,false));fans.forEach(f=>box(f,0,true));
+ ctx.fillStyle='#9aa7ba';ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillText('前',4,M+ny*s/2);ctx.textAlign='right';ctx.fillText('後',cw-4,M+ny*s/2);
+ // colorbar
+ const by=M+ny*s+M-6,bw=cw-2*M;for(let q=0;q<bw;q++){const[r,g,b]=jet(q/bw);ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.fillRect(M+q,by,1,10)}
+ ctx.fillStyle='#cfd6e0';ctx.textAlign='left';ctx.fillText(V?'0 m/s':lo.toFixed(0)+'°C',M,by+24);ctx.textAlign='right';ctx.fillText(V?vm.toFixed(1)+' m/s':hi.toFixed(0)+'°C (藍=室溫)',cw-M,by+24)}
+function stats(){let I=0,O=0;fans.forEach(f=>{if(!f.on)return;const q=f.cfm*f.spd/100;if(f.dir=='in')I+=q*(1-S.clog/100*.7);else O+=q});
+ const net=I-O,st=Math.abs(net)<5?'平衡':net>0?'正壓':'負壓';let tt=0;for(const c of fl)tt+=T[c];
+ const cs=comps.map(r=>{let a=0,n=0;(r.water?r.rads.flatMap(x=>x.cells):r.cells).forEach(c=>{a+=T[c];n++});a=n?a/n:S.Ta;let rr=r.r*(r.water?.6:1),ex='';
+ if(r.k=='gpu'&&!r.water&&r.nf!=null){const tot=r.nf*r.fcfm*clamp(r.rpm/(r.rpmMax||1),0,1);rr=r.r*Math.sqrt(150/Math.max(10,tot));ex=`[風扇${tot.toFixed(0)}CFM]`}
+ return`${r.n}${r.water?'(水冷)':''}≈${(a+r.P*rr).toFixed(0)}°C${ex}`}).join('　');
+ $('#stats').innerHTML=`<b>進風 ${I.toFixed(0)}</b> · <b>排風 ${O.toFixed(0)}</b> CFM · 淨差 ${net.toFixed(0)} <b>${st}</b> · 機內 ${(tt/fl.length).toFixed(1)}°C<br>${cs}`;
+ document.querySelectorAll('[data-th]').forEach(e=>{const t=ths[e.dataset.th],v=t?tempAt(Math.floor(t.x/100*nx),Math.floor(t.y/100*ny)):null;e.textContent=v==null?'--':v.toFixed(1)+'°C'})}
+let fr=0;function loop(){if(run)for(let i=0;i<5;i++)step();draw();if(++fr%15==0)stats();requestAnimationFrame(loop)}
+function tempAt(i,j){for(let q=1;q<=3;q++){let a=0,n=0;for(let y=j-q;y<=j+q;y++)for(let x=i-q;x<=i+q;x++){if(x<1||y<1||x>=nx-1||y>=ny-1)continue;const c=y*nx+x;if(tp[c]==0){a+=T[c];n++}}if(n)return a/n}return null}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x==b));document.querySelectorAll('.pn').forEach(p=>p.hidden=p.id!='p-'+b.dataset.tab)});
+let drag=null;
+function cellPos(e){const b=cv.getBoundingClientRect(),k=(parseFloat(cv.style.width)||b.width)/b.width;return[((e.clientX-b.left)*k-VW.M)/VW.s,((e.clientY-b.top)*k-VW.M)/VW.s]}
+function hit(i,j){for(let q=ths.length-1;q>=0;q--){const t=ths[q],ti=t.x/100*nx,tj=t.y/100*ny;if(Math.hypot((i-ti)*VW.s,(j-tj)*VW.s)<16)return{k:'t',q,oi:i-ti,oj:j-tj}}
+ for(let q=comps.length-1;q>=0;q--){const c=comps[q];if(i>=c.X0-2&&i<c.X1+3&&j>=c.Y0-2&&j<c.Y1+3)return{k:'c',q,oi:i-c.X0,oj:j-c.Y0}}return null}
+cv.addEventListener('pointerdown',e=>{const[i,j]=cellPos(e);drag=hit(i,j);if(drag){cv.setPointerCapture(e.pointerId);e.preventDefault()}});
+cv.addEventListener('pointermove',e=>{const[i,j]=cellPos(e);if(!drag){cv.style.cursor=hit(i,j)?'grab':'default';return}
+ cv.style.cursor='grabbing';
+ if(drag.k=='t'){const t=ths[drag.q];t.x=clamp((i-drag.oi)/nx*100,1,99);t.y=clamp((j-drag.oj)/ny*100,1,99)}
+ else{const c=cps[drag.q];c.x=clamp((i-drag.oi)/nx*100,0,Math.max(0,100-cwp(c)));c.y=clamp((j-drag.oj)/ny*100,0,Math.max(0,100-chp(c)));mask()}});
+const endDrag=()=>{if(drag){drag=null;renderLists()}};cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
+alloc();preset('pos');loop();
+</script></body></html>
+
+
+// 為比利借助ai製造:) //
